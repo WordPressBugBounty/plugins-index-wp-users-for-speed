@@ -4,7 +4,7 @@ Tags: users, database, index, performance, largesite
 Requires at least: 5.2
 Tested up to: 6.8.2
 Requires PHP: 5.6
-Stable tag: 1.1.11
+Stable tag: 1.1.12
 Network: true
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -126,6 +126,11 @@ If you configure your WordPress installation using composer, you may install thi
 
 == Changelog ==
 
+
+= 1.1.12 =
+
+Fix incompatibility with https://wordpress.org/plugins/advanced-ads/ . Props to @carlos978.
+
 = 1.1.11 =
 
 Fix incompatibility with https://wordpress.org/plugins/co-authors-plus/ .
@@ -182,6 +187,6 @@ allow more flexible changes of post and page authors.
 
 == Upgrade Notice ==
 
-Version 1.1.6 supports metadata user queries.
+Version 1.1.12 fixes compatibility problems with some other plugins.
 
 Thanks to my loyal users who have reported problems.
