@@ -2,9 +2,9 @@
 Contributors: OllieJones
 Tags: users, database, index, performance, largesite
 Requires at least: 5.2
-Tested up to: 6.8.2
+Tested up to: 6.9
 Requires PHP: 5.6
-Stable tag: 1.1.12
+Stable tag: 1.2.0
 Network: true
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -78,9 +78,18 @@ This plugin adds rows to `wp_usermeta` describing each user's role (or roles) in
 
 `meta_key = 'wp_index_wp_users_for_speed_role_author'`
 
-It takes a while to insert these extra indexing rows into the database; that happens in the background.
+It takes a while to insert these extra indexing rows into the database; that happens with WP_Cron tasks in the background.
 
 Once the indexing rows are in place, you can add, delete, or change user roles without regenerating those rows: the plugin maintains them.
+
+= How does the plugin handle large numbers of users without timing out? =
+
+It performs the indexing for batches of users, each in a separate WP_Cron task.
+
+The number of users in a batch defaults to 5000 and can be set, if need be, with the INDEX_WP_USERS_FOR_SPEED_BATCHSIZE variable in wp-config.php.
+
+It breaks each batch into chunks of 50 users, by default. That can be set with the INDEX_WP_USERS_FOR_SPEED_CHUNKSIZE variable in wp-config.php.
+
 
 = What is the background for this plugin? =
 
@@ -116,6 +125,7 @@ If you configure your WordPress installation using composer, you may install thi
 = Credits =
 * "Crowd", a photo by James Cridland, in the banner and icon. [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/)
 * Japreet Sethi for advice, and for testing on his large installation.
+* Stéphane Boisvert for testing on his large installations.
 * Rick James for everything.
 
 == Screenshots ==
@@ -126,6 +136,11 @@ If you configure your WordPress installation using composer, you may install thi
 
 == Changelog ==
 
+= 1.2.0 =
+
+Handle non-consecutive wp_user.ID values with large gaps.
+
+Control of batch and chunk size is possible in wp-config.php.
 
 = 1.1.12 =
 
@@ -135,58 +150,8 @@ Fix incompatibility with https://wordpress.org/plugins/advanced-ads/ . Props to 
 
 Fix incompatibility with https://wordpress.org/plugins/co-authors-plus/ .
 
-= 1.1.10 =
-
-Remove rendundant l11n loading.
-
-= 1.1.9 =
-
-Fix typo in cron-disabled code path.
-
-= 1.1.8 =
-
-Use transactions to hopefully avoid deadlocks. Use options instead of transients.
-
-= 1.1.7 =
-
-Display both user display name and login name in dropdowns.
-
-= 1.1.6 =
-
-Handles WP_User_Query operations with metadata search correctly.
-
-= 1.1.5 =
-
-Repair problem handing user queries with role__not_in and role__in search terms.
-
-= 1.1.4 =
-
-* Fix compatibility with WordPress pre 5.9.
-* Display more reliable user count on dashboard panel.
-
-= 1.1.3 =
-
-* Correct query-optimization problem when rendering autocompletion fields.
-* Test and optimize with MariaDB 10.9.
-
-= 1.1.2 =
-
-* Correct query-optimization error.
-* Update the usermeta table's query-planning statistics after adding user metadata.
-
-= 1.1.1 =
-
-* Replace the author dropdown menus in Quick Edit and Bulk Edit with autocompletion fields, to
-allow more flexible changes of post and page authors.
-* Improve the performance of user lookups.
-* Allow multiple roles per user as provided in plugins like User Role Editor.
-
-= 1.0.4 =
-
-* Fix bug preventing wp-cli deactivation. Props to [João Faria](https://github.com/jffaria).
-
 == Upgrade Notice ==
 
-Version 1.1.12 fixes compatibility problems with some other plugins.
+Version 1.2.0 handles discontinuous user ID values. The percent-complete display may be a bit misleading when there are large gaps in those values.
 
 Thanks to my loyal users who have reported problems.
