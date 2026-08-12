@@ -1,10 +1,10 @@
 === Index WP Users For Speed ===
 Contributors: OllieJones
 Tags: users, database, index, performance, largesite
-Requires at least: 5.2
-Tested up to: 7.0
+Requires at least: 5.3
+Tested up to: 7.1
 Requires PHP: 5.6
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 Network: true
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -34,11 +34,11 @@ When slow queries are required to make sure the metadata indexes are up to date,
 
 You can use WP-CLI commands built in to this plugin.
 
-`wp index-users status` shows the status of user index creation.
+* `wp index-users status` shows the status of user index creation.
 
-`wp index-users remove` removes the user index information. This includes usermeta rows and options rows.
+* `wp index-users remove` removes the user index information. This includes usermeta rows and options rows.
 
-`wp index-users rebuild` rebuilds the user index information. Notice that activating the plugin always begins building the user index information.
+* `wp index-users rebuild` rebuilds the user index information. Notice that activating the plugin always begins building the user index information.
 
 <h4>How can I learn more about making my WordPress site more efficient?</h4>
 
@@ -62,7 +62,7 @@ I offer several plugins to help with your site's database efficiency. You can [r
 
 = I see high CPU usage (load average) on my MariaDB / MySQL database server during user index building or refresh. Is that normal?
 
-**Yes.** Indexing your registered users requires us to insert a row in your wp_usermeta tab;e for each of them. We do this work in batches of 5000 users to avoid locking up your MariaDB / MySQL server. Each batch takes server time. Once all index building or refresh batches are complete, your CPU usage will return to normal.
+**Yes.** Indexing your registered users requires us to insert a row in your wp_usermeta table for each of them. We do this work in batches of 5000 users to avoid locking up your MariaDB / MySQL server. Each batch takes server time. Once all index building or refresh batches are complete, your CPU usage will return to normal.
 
 = Can I use this if I have disabled WP_Cron and use an operating system cronjob instead?
 
@@ -80,7 +80,7 @@ Standard WordPress puts a `wp_capabilities` row in the `wp_usermeta` table for e
 
 In order to find all the authors WordPress must issue a database query containing a filter like this one, that starts and ends with the SQL wildcard character `%`.
 
-`meta_key = 'wp_capabilities' AND meta_value LIKE '%"author"%'`
+`meta_key = 'wp_capabilities' AND meta_value LIKE '%author%'`
 
 Filters like that are notoriously slow: they cannot exploit any database keys, and so MySQL or MariaDB must examine that `wp_usermeta` row for every user in your site.
 
@@ -146,6 +146,10 @@ If you configure your WordPress installation using composer, you may install thi
 
 == Changelog ==
 
+= 1.3.1 =
+
+Correct defect when handling user queries with multi-role role_in() clauses. Props to @za12bt.
+
 = 1.3.0 =
 
 Remediate slow queries when creating and refreshing wp_usermeta user-indexing items. Props to @nandotess for the PR.
@@ -168,8 +172,6 @@ Fix incompatibility with https://wordpress.org/plugins/co-authors-plus/ .
 
 == Upgrade Notice ==
 
-This version remediates slow queries building and rebuilding the index rows in wp_usermeta.  Props to @nandotess.
-
-It adds wp-cli:  `wp index-users status`, `wp index-users remove`, and `wp index-users rebuild`. Props to @faisalahammad.
+This corrects a problem with user queries with multi-role role_in clauses. Props to @za12bt.
 
 Thanks to my loyal users who have reported problems.
