@@ -8,6 +8,7 @@ use WP_Error;
 use WP_HTTP_Response;
 use WP_REST_Request;
 use WP_REST_Response;
+use WP_Roles;
 use WP_User_Query;
 
 require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/indexer.php';
@@ -69,7 +70,7 @@ class UserHandler extends WordPressHooks {
    * Fires immediately before updating user metadata.
    *
    * We use this to watch for changes in the wp_capabilities metadata.
-   * (It's named wp_2_capabilities etc in multisite).
+   * (It's named wp_2_capabilities etc. in multisite).
    *
    * @param int $meta_id ID of the metadata entry to update.
    * @param int $user_id ID of the object metadata is for.
@@ -91,9 +92,9 @@ class UserHandler extends WordPressHooks {
 
   /** Returns the capabilities meta key, or false if it's not the capabilities key.
    *
-   * @param $meta_key
+   * @param string $meta_key
    *
-   * @return false|string
+   * @return boolean
    */
   private function isCapabilitiesKey( $meta_key ) {
     global $wpdb;
@@ -165,7 +166,7 @@ class UserHandler extends WordPressHooks {
    *
    * We use this to watch a new wp_capabilities metadata item, meaning
    * a new user is added, overall or to a particular multisite blog.
-   * It's named wp_2_capabilities etc in multisite.
+   * It's named wp_2_capabilities etc. in multisite.
    *
    * @param int $user_id ID of the object metadata is for.
    * @param string $meta_key Metadata key.
@@ -189,7 +190,7 @@ class UserHandler extends WordPressHooks {
    *
    * We use this to watch for deletion of the wp_capabilities metadata.
    * That means the user is being deleted.
-   * It's named wp_2_capabilities etc in multisite.
+   * It's named wp_2_capabilities etc. in multisite.
    * This fires when a user is removed from a blog in a multisite setup.
    *
    * @param string[] $meta_ids An array of metadata entry IDs to delete.
@@ -314,7 +315,7 @@ class UserHandler extends WordPressHooks {
       $cap     = is_array( $cap ) ? $cap : [ $cap ];
       $caps    = array_key_exists( 'capability__in', $parsed_args ) ? $parsed_args['capability__in'] : [];
       $argsCap = array_unique( $cap + $caps );
-      /* capabilites are edit_posts and/or edit_pages */
+      /* Capabilities are edit_posts and/or edit_pages */
       foreach ( [ 'edit_posts', 'edit_pages' ] as $capToCheck ) {
         if ( in_array( $capToCheck, $argsCap ) ) {
           $capsFound [] = $capToCheck;
@@ -336,7 +337,7 @@ class UserHandler extends WordPressHooks {
       /* Find the list of roles (administrator, contributor, etc.) with $capsFound capabilities */
       global $wp_roles;
       /* sometimes it isn't initialized in multisite. */
-      $wp_roles = $wp_roles ?: new \WP_Roles();
+      $wp_roles = $wp_roles ?: new WP_Roles();
       $wp_roles->for_site( get_current_blog_id() );
       $roleList = [];
       foreach ( $capsFound as $capFound ) {
@@ -379,17 +380,14 @@ class UserHandler extends WordPressHooks {
     return $query_args;
   }
 
-  /** Create a meta arg for looking for an exsisting role tag
+  /** Create a meta arg for looking for an existing role tag
    *
    * @param string $role
    * @param string $compare 'NOT EXISTS' or 'EXISTS' (the default).
    *
    * @return array meta query arg array
    */
-  private
-  function makeRoleQueryArgs(
-    $role, $compare = 'EXISTS'
-  ) {
+  private function makeRoleQueryArgs( $role, $compare = 'EXISTS' ) {
     global $wpdb;
     $roleMetaPrefix = $wpdb->prefix . INDEX_WP_USERS_FOR_SPEED_KEY_PREFIX . 'r:';
     $roleMetaKey    = $roleMetaPrefix . $role;
@@ -414,14 +412,13 @@ class UserHandler extends WordPressHooks {
    * @since 3.1.0
    *
    */
-  public function filter_meta_sql(
-    $sql, $queries, $type, $primary_table, $primary_id_column, $context
-  ) {
+  public function filter_meta_sql( $sql, $queries, $type, $primary_table, $primary_id_column, $context ) {
     global $wpdb;
-    if ( $type !== 'user' ) {
+    /* Don't process unexpected queries */
+    if ( $type !== 'user' || 'WP_User_Query' !== get_class( $context ) || $wpdb->users !== $primary_table || 'ID' !== $primary_id_column ) {
       return $sql;
     }
-    /* single meta query that doesn't look like one of ours. */
+    /* A single meta query that doesn't look like one of ours. */
     if ( ! is_multisite() && ( ! array_key_exists( 'relation', $queries ) || $queries['relation'] !== 'OR' ) ) {
       return $sql;
     }
@@ -444,17 +441,17 @@ class UserHandler extends WordPressHooks {
           $keys[] = $query['key'];
         }
       }
-      $capabilityTags = array_map( function ( $key ) {
-        global $wpdb;
-        return $wpdb->prepare( "%s", $key );
-      }, $keys );
+      $roleQueries = [];
+      foreach ( $keys as $key ) {
+        $roleQueries[] = $wpdb->prepare( "SELECT user_id FROM $wpdb->usermeta WHERE meta_key = %s", $key );
+      }
 
-      $where = PHP_EOL . " AND $wpdb->users.ID IN ( SELECT user_id FROM $wpdb->usermeta WHERE meta_key IN (" . implode( ',', $capabilityTags ) . '))' . PHP_EOL;
-      /* only do this once per invocation of user query with metadata */
+      $join = ' JOIN ( '. implode( PHP_EOL . ' UNION ALL ', $roleQueries ) . ') AS index_wp_users_roles ON ' . $primary_table . '.'. $primary_id_column . ' = index_wp_users_roles.user_id' . PHP_EOL;
+      /* Only do this filtering once per invocation of user query with metadata */
       remove_filter( 'get_meta_sql', [ $this, 'filter_meta_sql' ], 10 );
 
-      $sql['join']  = '';
-      $sql['where'] = $where;
+      $sql['join']  = $join;
+      $sql['where'] = '';
     }
     return $sql;
   }
@@ -734,7 +731,7 @@ class UserHandler extends WordPressHooks {
       $excludes[] = $this->makeRoleQueryArgs( $role, 'NOT EXISTS' );
     }
     if ( count( $excludes ) > 1 ) {
-      $excludes [ 'relation'] = 'AND';
+      $excludes ['relation'] = 'AND';
     }
     if ( count( $includes ) > 0 && count( $excludes ) > 0 ) {
       $meta = [ 'relation' => 'AND', $includes, $excludes ];
@@ -747,10 +744,10 @@ class UserHandler extends WordPressHooks {
     }
     /* stash those meta query args in the query variables we got */
     if ( isset( $qv['meta_query'] ) && $meta ) {
-      $new               = array();
-      $new ['relation']  = 'AND';
-      $new []            = $qv['meta_query'];
-      $new []            = $meta;
+      $new              = array();
+      $new ['relation'] = 'AND';
+      $new []           = $qv['meta_query'];
+      $new []           = $meta;
       //phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
       $qv ['meta_query'] = $new;
     } else {
@@ -761,6 +758,8 @@ class UserHandler extends WordPressHooks {
     $qv['role']         = '';
     $qv['role__in']     = [];
     $qv['role__not_in'] = [];
+
+    add_filter( 'get_meta_sql', [ $this, 'filter_meta_sql' ], 10, 6 );
   }
 
   /**
